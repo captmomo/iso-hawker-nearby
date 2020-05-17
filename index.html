@@ -27,7 +27,7 @@
             background-color: #323432;
         }
 
- 
+
         .custom {
             height: 100%;
             overflow: auto;
@@ -59,6 +59,35 @@
 
         .menu-label {
             text-align: center;
+        }
+
+        /* Marker tweaks */
+        .mapboxgl-popup-close-button {
+            display: none;
+        }
+
+        .mapboxgl-popup-content {
+            font: 400 15px/22px 'Source Sans Pro', 'Helvetica Neue', Sans-serif;
+            padding: 0;
+            width: 350px;
+        }
+
+        .mapboxgl-popup-content-wrapper {
+            padding: 1%;
+        }
+
+
+
+        .mapboxgl-popup-content div {
+            padding: 5px;
+        }
+
+        .mapboxgl-container .leaflet-marker-icon {
+            cursor: pointer;
+        }
+
+        .mapboxgl-popup-anchor-top>.mapboxgl-popup-content {
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -125,7 +154,7 @@
             return fetch(isoUrl).then(res => res.json());
         };
 
-        const closePopups = function(){
+        const closePopups = function () {
             var popUps = document.getElementsByClassName('mapboxgl-popup');
             /** Check if there is already a popup on the map and if so, remove it */
             if (popUps[0]) popUps[0].remove();
@@ -279,7 +308,7 @@
 
         };
 
-        function constructPopup(store){
+        function constructPopup(store) {
             let template = `
             <div class="card">
   <header class="card-header">
@@ -309,9 +338,9 @@
     </div>
   </div>
   <footer class="card-footer">
-    ${store.Contact ? '<p class="card-footer-item"><i class="fa fa-phone fa-fw" aria-hidden="true"> </i> &nbsp;' + store.Contact + '</p>': ''}
-    ${store.WhatsApp ? '<p class="card-footer-item"><i class="fab fa-whatsapp fa-fw"> </i>&nbsp;' + parseInt(store.WhatsApp,10) + '</p>': ''}
-    ${store.Website ? '<a class="card-footer-item" target="_blank" href="'+ store.Website + '">Website</a>': ''}
+    ${store.Contact ? '<p class="card-footer-item"><i class="fa fa-phone fa-fw" aria-hidden="true"> </i> &nbsp;' + store.Contact + '</p>' : ''}
+    ${store.WhatsApp ? '<p class="card-footer-item"><i class="fab fa-whatsapp fa-fw"> </i>&nbsp;' + parseInt(store.WhatsApp, 10) + '</p>' : ''}
+    ${store.Website ? '<a class="card-footer-item" target="_blank" href="' + store.Website + '">Website</a>' : ''}
   </footer>
 </div>
             `
