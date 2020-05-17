@@ -101,7 +101,7 @@
             params: {
                 urlBase: "https://api.mapbox.com/isochrone/v1/mapbox/",
                 profile: "walking/",
-                minutes: 10,
+                minutes: 30,
                 category: "cafe"
             },
             origins: {
@@ -123,12 +123,35 @@
             // Return the GeoJSON
             return fetch(isoUrl).then(res => res.json());
         };
+
+        const closePopups = function(){
+            var popUps = document.getElementsByClassName('mapboxgl-popup');
+            /** Check if there is already a popup on the map and if so, remove it */
+            if (popUps[0]) popUps[0].remove();
+        };
         //update draggable iso;
         const updateDraggableIso = function (position) {
             getIso(position)
                 .then(result => {
                     isoAppData.isos.a = result;
                     map.getSource('draggable').setData(isoAppData.isos.a);
+                    highlightNearest(result.features[0]);
+                })
+        }
+
+        const highlightNearest = function (features) {
+            const isoBuffA = turf.buffer(features, 0.001);
+            const newSource = turf.featureCollection([])
+            fetchJson(storeGeo)
+                .then(result => {
+
+                    result.features.forEach(function (store, i) {
+                        let point = turf.point([store.geometry.coordinates[0], store.geometry.coordinates[1]]);
+                        if (turf.intersect(point, isoBuffA)) {
+                            newSource.features.push(store);
+                        }
+                    });
+                    map.getSource('nearest').setData(newSource);
                 })
         }
         // Update the map sources so the isochrones draw on the map
@@ -180,12 +203,7 @@
             });
         };
 
-
-        const macJson = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/macdonalds.json';
-        const macGeoJson = 'https://gist.githubusercontent.com/captmomo/b19136360712e691c0898c4b34842965/raw/d5e420345edd4fea8555856ca1977be9e5765bf7/mcdonalds.geojson';
-        const macIso = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/mcdisochrone.json';
-        const macIso20 = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/mcdisochrone20.json'
-        const macIso30 = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/mcdisochrone30.json'
+        const storeGeo = 'https://raw.githubusercontent.com/captmomo/iso-hawker-nearby/master/hawkers.geojson';
 
         //set up for draggables
         const setUpDraggables = function () {
@@ -209,7 +227,7 @@
                 }
             }, "poi-label");
 
-            updateDraggableIso(isoAppData.origins.a);
+            updateDraggableIso(isoAppData.origins.a)
         };
 
 
@@ -222,24 +240,113 @@
             .addTo(map);
         const setUpDraggableMarker = function () {
             function onDragEndA() {
+                closePopups();
                 const lngLat = originA.getLngLat();
                 isoAppData.origins.a = [lngLat.lng, lngLat.lat];
                 updateDraggableIso(isoAppData.origins.a);
-                highlightNearest(isoAppData.origins.a)
+                //highlightNearest(isoAppData.isos.a.features[0])
             }
 
 
-            highlightNearest(isoAppData.origins.a)
+            //highlightNearest(isoAppData.isos.a.features[0])
             originA.on("dragend", onDragEndA);
         }
 
+        function logResult(result) {
+            console.log(result);
+        }
+
+        function logError(error) {
+            console.log('Looks like there was a problem: \n', error);
+        }
+
+        function validateResponse(response) {
+            if (!response.ok) {
+                throw Error(response.statusText);
+            }
+            return response;
+        }
+
+        function readResponseAsJSON(response) {
+            return response.json();
+        }
         const fetchJson = function getJson(url) {
             return fetch(url)
-                .then(res => res.json());
+                .then(validateResponse)
+                .then(readResponseAsJSON)
+                .catch(logError);
 
         };
-        map.on('load', function () {
 
+        function constructPopup(store){
+            let template = `
+            <div class="card">
+  <header class="card-header">
+    <span class="card-header-title">
+      <p class="title is-4">${store.Name}</p>
+    <span>
+  </header>
+  <div class="card-content">
+
+    <div class="content">
+        <div class="field">
+            <label class="label">Address</label>
+            <span class="has-text">${store.Address}</span>
+            <p class="has-text">  ${store.Dish} </p>
+        </div>
+        
+        <div class="field">
+            <label class="label">Service Area</label>
+            <span class="has-text">${store.Service}</span>
+        </div>
+        
+        <div class="field">
+            <label class="label">Min order</label>
+            <span class="has-text">${store.Min ? store.Min : 'Not stated'}</span>
+        </div>
+        
+    </div>
+  </div>
+  <footer class="card-footer">
+    ${store.Contact ? '<p class="card-footer-item">' + store.Contact + '</p>': ''}
+    ${store.WhatsApp ? '<p class="card-footer-item">' + parseInt(store.WhatsApp,10) + '</p>': ''}
+    ${store.Website ? '<a class="card-footer-item" target="_blank" href="'+ store.Website + '">Website</a>': ''}
+  </footer>
+</div>
+            `
+            return template;
+        }
+
+        function createPopUp(currentFeature) {
+            var popUps = document.getElementsByClassName('mapboxgl-popup');
+            /** Check if there is already a popup on the map and if so, remove it */
+            if (popUps[0]) popUps[0].remove();
+            console.log(currentFeature);
+            var popup = new mapboxgl.Popup({ closeOnClick: false })
+                .setLngLat(currentFeature.geometry.coordinates)
+                .setHTML(constructPopup(currentFeature.properties))
+                .addTo(map);
+        }
+
+
+        map.on('load', function () {
+            // Create an empty GeoJSON feature collection for drop-off locations
+            let nearestFeature = turf.featureCollection([]);
+            map.addSource("nearest", { type: "geojson", data: nearestFeature });
+            map.addLayer({
+                id: 'nearest-symbol',
+                type: 'symbol',
+                source: 'nearest',
+                layout: {
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                    'icon-image': 'fast-food-15',
+                }
+            });
+            fetchJson(storeGeo)
+                .then(result => {
+                    map.addSource("stores", { type: "geojson", data: result });
+                })
             //set up draggables
             setUpDraggables();
             setUpDraggableMarker();
@@ -247,6 +354,7 @@
 
             //set up draggable to respond to geocoder search
             geocoder.on("result", ev => {
+                closePopups();
                 const resultLon = ev.result.geometry.coordinates[0];
                 const resultLat = ev.result.geometry.coordinates[1];
                 isoAppData.origins.a = [resultLon, resultLat];
@@ -254,6 +362,11 @@
                 originA.setLngLat(isoAppData.origins.a);
                 // eslint-disable-next-line no-use-before-define
                 updateDraggableIso(isoAppData.origins.a);
+            });
+
+            map.on("click", "nearest-symbol", function (e) {
+                let clickedPoint = e.features[0];
+                createPopUp(clickedPoint);
             });
         });
 
