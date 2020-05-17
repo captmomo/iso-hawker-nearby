@@ -27,6 +27,7 @@
             background-color: #323432;
         }
 
+ 
         .custom {
             height: 100%;
             overflow: auto;
@@ -308,8 +309,8 @@
     </div>
   </div>
   <footer class="card-footer">
-    ${store.Contact ? '<p class="card-footer-item">' + store.Contact + '</p>': ''}
-    ${store.WhatsApp ? '<p class="card-footer-item">' + parseInt(store.WhatsApp,10) + '</p>': ''}
+    ${store.Contact ? '<p class="card-footer-item"><i class="fa fa-phone fa-fw" aria-hidden="true"> </i> &nbsp;' + store.Contact + '</p>': ''}
+    ${store.WhatsApp ? '<p class="card-footer-item"><i class="fab fa-whatsapp fa-fw"> </i>&nbsp;' + parseInt(store.WhatsApp,10) + '</p>': ''}
     ${store.Website ? '<a class="card-footer-item" target="_blank" href="'+ store.Website + '">Website</a>': ''}
   </footer>
 </div>
