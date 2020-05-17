@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset='utf-8' />
+    <title>Isochrone Map - Singapore MacDonalds coverage based on travel time (walking)</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <!--import bulma-->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <!-- Import Mapbox GL JS  -->
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.10.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.10.0/mapbox-gl.css' rel='stylesheet' />
+    <!-- Import Assembly -->
+    <link href='https://api.mapbox.com/mapbox-assembly/v0.23.2/assembly.min.css' rel='stylesheet'>
+    <script src='https://api.mapbox.com/mapbox-assembly/v0.23.2/assembly.js'></script>
+    <!-- Import jQuery -->
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js'></script>
+
+
+    <!--import turf-->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@5/turf.min.js"></script>
+
+
+    <style>
+        html {
+            background-color: #323432;
+        }
+
+        .custom {
+            height: 100%;
+            overflow: auto;
+            padding-bottom: 1em;
+            background: #323432;
+        }
+
+        .custom .toggle-option {
+            display: block;
+            border-bottom: 1px solid #eee;
+            padding: 1em;
+            text-decoration: none;
+            color: #c2e2c2;
+            text-align: center;
+        }
+
+        .columns.is-fullheight {
+            min-height: calc(100vh - .25rem);
+            max-height: calc(100vh - .25rem);
+            height: calc(100vh - .25rem);
+            display: flex;
+            flex-direction: row;
+            justify-content: stretch;
+        }
+
+        .columns.is-fullheight .column {
+            overflow-y: auto;
+        }
+
+        .menu-label {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!--Import geocoder styles and script-->
+    <script
+        src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet"
+        href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.css"
+        type="text/css" />
+    <!-- Promise polyfill script required to use Mapbox GL Geocoder in IE 11 -->
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.auto.min.js"></script>
+    <div class='columns is-fullheight is-gapless'>
+        <!-- Create a container for the map -->
+        <div id='map' class="map column"></div>
+    </div>
+
+
+    <script>
+        // Add your Mapbox access token
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY2FwdG1vbW8iLCJhIjoiY2thMnBtZTBhMGNteTNucG53Y3g2Y3gyNyJ9.Z4_j43zWekpkn2lX9gmoxQ';
+        // Basic map instance (zoomed to Austin, TX)
+        const map = new mapboxgl.Map({
+            container: "map",
+            style: "mapbox://styles/mapbox/dark-v10?optimize=true",
+            center: [103.8163, 1.3426],
+            zoom: 13
+        });
+        const geocoder = new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            countries: 'sg',
+            mapboxgl: mapboxgl
+        });
+        map.addControl(geocoder, "top-right");
+        //map.addControl(new toggleControl());
+        // Set up an object to track app state and data
+        const isoAppData = {
+            params: {
+                urlBase: "https://api.mapbox.com/isochrone/v1/mapbox/",
+                profile: "walking/",
+                minutes: 10,
+                category: "cafe"
+            },
+            origins: {
+                a: [103.8163, 1.3426]
+            },
+            isos: {
+                a: {}
+            },
+            features: {
+                a: {}
+            }
+        };
+        // Get a single isochrone for a given position and return the GeoJSON
+        const getIso = function (position) {
+            // Build the URL for the isochrone API
+            const isoUrl = isoAppData.params.urlBase + isoAppData.params.profile + position.join(",") + "?contours_minutes=" +
+                isoAppData.params.minutes + "&polygons=true&access_token=" + mapboxgl.accessToken;
+
+            // Return the GeoJSON
+            return fetch(isoUrl).then(res => res.json());
+        };
+        //update draggable iso;
+        const updateDraggableIso = function (position) {
+            getIso(position)
+                .then(result => {
+                    isoAppData.isos.a = result;
+                    map.getSource('draggable').setData(isoAppData.isos.a);
+                })
+        }
+        // Update the map sources so the isochrones draw on the map
+        const setIsos = function (isos, store) {
+            map.addSource(store, {
+                type: "geojson",
+                data: {
+                    type: "FeatureCollection",
+                    features: [
+                    ]
+                }
+            });
+            map.addLayer({
+                "id": "isoLayer" + store,
+                "type": "fill",
+                "source": store,
+                "layout": {},
+                "paint": {
+                    "fill-color": "yellow",
+                    "fill-opacity": 0.2
+                }
+            }, "poi-label");
+
+
+            // Update the map
+            map.getSource(store).setData(isos);
+            //geoJsonArray.features.push({ geo : isos, name: store.name })
+        };
+
+        const updateIsos = function (isos, store) {
+            map.getSource(store).setData(isos);
+            //geoJsonArray.features.push({ geo: isos, name: store.name });
+        }
+        // Get the isochrone data from the API, then update the map
+        const getSetIsos = function (store) {
+            // Once the isochrones are received, update the map
+            let point = [store.long, store.lat]
+            getIso(point).then(values => {
+                setIsos(values, store);
+            });
+        };
+
+        // Get the isochrone data from the API, then update the map
+        const getUpdateIsos = function (store) {
+            // Once the isochrones are received, update the map
+            let point = [store.long, store.lat]
+            getIso(point).then(values => {
+                updateIsos(values, store.name);
+            });
+        };
+
+
+        const macJson = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/macdonalds.json';
+        const macGeoJson = 'https://gist.githubusercontent.com/captmomo/b19136360712e691c0898c4b34842965/raw/d5e420345edd4fea8555856ca1977be9e5765bf7/mcdonalds.geojson';
+        const macIso = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/mcdisochrone.json';
+        const macIso20 = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/mcdisochrone20.json'
+        const macIso30 = 'https://raw.githubusercontent.com/captmomo/macdonalds-isochrone-map/master/mcdisochrone30.json'
+
+        //set up for draggables
+        const setUpDraggables = function () {
+            map.addSource("draggable", {
+                type: "geojson",
+                data: {
+                    type: "FeatureCollection",
+                    features: [
+                    ]
+                }
+            });
+
+            map.addLayer({
+                "id": "draggable",
+                "type": "fill",
+                "source": "draggable",
+                "layout": {},
+                "paint": {
+                    "fill-color": "lightblue",
+                    "fill-opacity": 0.3
+                }
+            }, "poi-label");
+
+            updateDraggableIso(isoAppData.origins.a);
+        };
+
+
+
+
+        const originA = new mapboxgl.Marker({
+            draggable: true
+        })
+            .setLngLat(isoAppData.origins.a)
+            .addTo(map);
+        const setUpDraggableMarker = function () {
+            function onDragEndA() {
+                const lngLat = originA.getLngLat();
+                isoAppData.origins.a = [lngLat.lng, lngLat.lat];
+                updateDraggableIso(isoAppData.origins.a);
+                highlightNearest(isoAppData.origins.a)
+            }
+
+
+            highlightNearest(isoAppData.origins.a)
+            originA.on("dragend", onDragEndA);
+        }
+
+        const fetchJson = function getJson(url) {
+            return fetch(url)
+                .then(res => res.json());
+
+        };
+        map.on('load', function () {
+
+            //set up draggables
+            setUpDraggables();
+            setUpDraggableMarker();
+
+
+            //set up draggable to respond to geocoder search
+            geocoder.on("result", ev => {
+                const resultLon = ev.result.geometry.coordinates[0];
+                const resultLat = ev.result.geometry.coordinates[1];
+                isoAppData.origins.a = [resultLon, resultLat];
+                // eslint-disable-next-line no-use-before-define
+                originA.setLngLat(isoAppData.origins.a);
+                // eslint-disable-next-line no-use-before-define
+                updateDraggableIso(isoAppData.origins.a);
+            });
+        });
+
+    </script>
+</body>
+
+</html>
