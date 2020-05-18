@@ -112,7 +112,7 @@
     <script>
         // Add your Mapbox access token
         mapboxgl.accessToken = 'pk.eyJ1IjoiY2FwdG1vbW8iLCJhIjoiY2thMnBtZTBhMGNteTNucG53Y3g2Y3gyNyJ9.Z4_j43zWekpkn2lX9gmoxQ';
-        // Basic map instance (zoomed to Austin, TX)
+        // Basic map instance
         const map = new mapboxgl.Map({
             container: "map",
             style: "mapbox://styles/mapbox/dark-v10?optimize=true",
@@ -125,7 +125,7 @@
             mapboxgl: mapboxgl
         });
         map.addControl(geocoder, "top-right");
-        //map.addControl(new toggleControl());
+        
         // Set up an object to track app state and data
         const isoAppData = {
             params: {
@@ -184,55 +184,6 @@
                     map.getSource('nearest').setData(newSource);
                 })
         }
-        // Update the map sources so the isochrones draw on the map
-        const setIsos = function (isos, store) {
-            map.addSource(store, {
-                type: "geojson",
-                data: {
-                    type: "FeatureCollection",
-                    features: [
-                    ]
-                }
-            });
-            map.addLayer({
-                "id": "isoLayer" + store,
-                "type": "fill",
-                "source": store,
-                "layout": {},
-                "paint": {
-                    "fill-color": "yellow",
-                    "fill-opacity": 0.2
-                }
-            }, "poi-label");
-
-
-            // Update the map
-            map.getSource(store).setData(isos);
-            //geoJsonArray.features.push({ geo : isos, name: store.name })
-        };
-
-        const updateIsos = function (isos, store) {
-            map.getSource(store).setData(isos);
-            //geoJsonArray.features.push({ geo: isos, name: store.name });
-        }
-        // Get the isochrone data from the API, then update the map
-        const getSetIsos = function (store) {
-            // Once the isochrones are received, update the map
-            let point = [store.long, store.lat]
-            getIso(point).then(values => {
-                setIsos(values, store);
-            });
-        };
-
-        // Get the isochrone data from the API, then update the map
-        const getUpdateIsos = function (store) {
-            // Once the isochrones are received, update the map
-            let point = [store.long, store.lat]
-            getIso(point).then(values => {
-                updateIsos(values, store.name);
-            });
-        };
-
         const storeGeo = 'https://raw.githubusercontent.com/captmomo/iso-hawker-nearby/master/hawkers.geojson';
 
         //set up for draggables
